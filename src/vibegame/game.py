@@ -4,10 +4,31 @@ import random
 import os
 import sys
 from pathlib import Path
-import pyxel
 
 # Initialize pygame
 pygame.init()
+
+# Initialize sound system
+try:
+    import pyxel
+    # Initialize Pyxel with minimal settings (just for sound)
+    pyxel.init(1, 1, fps=60, quit_key=None)
+    
+    # Create a simple background music
+    pyxel.sound(0).set(
+        "c3e3g3c4",  # notes
+        "s",         # tone
+        "3",         # volume
+        "n",         # effect (none)
+        20          # speed
+    )
+    
+    # Play the music in loop
+    pyxel.play(0, 0, loop=True)
+except ImportError:
+    print("Pyxel not available - running without sound")
+except Exception as e:
+    print(f"Sound initialization failed: {e} - running without sound")
 
 # Constants
 SCREEN_WIDTH = 800
@@ -27,47 +48,6 @@ class GameState:
     PLAYING = 1
     GAME_OVER = 2
     PAUSED = 3
-
-# Create and play 8-bit style loop music with Pyxel
-def create_music():
-    # Initialize Pyxel with no display (just for sound)
-    pyxel.init(1, 1, fps=30, quit_key=None)
-
-    # Define music patterns (8-bit style with mayo accents)
-    pyxel.sound(0).set(
-        "c3e3g3c4 c4g3e3c3 f3a3c4f4 f4c4a3f3",  # Notes
-        "p",  # Tone (piano-like)
-        "7",  # Volume
-        "n",  # Effect (no effect)
-        25,   # Speed
-    )
-    pyxel.sound(1).set(
-        "g2b2d3g3 g3d3b2g2 a2c3e3a3 a3e3c3a2",  # Notes
-        "t",  # Tone (triangle wave for bass)
-        "7",  # Volume
-        "n",  # Effect (no effect)
-        25,   # Speed
-    )
-    pyxel.sound(2).set(
-        "c4d4e4f4 g4a4b4c5 d5e5f5g5 a5b5c6d6",  # Valid notes (mayo accents)
-        "s",  # Tone (square wave for sharp accents)
-        "6",  # Volume
-        "f",  # Effect (fade)
-        50,   # Speed
-    )
-
-    # Combine sounds into a music loop
-    pyxel.music(0).set(
-        (0, 1, 2, 0),  # Sound channels
-        "nnnn",        # Play all channels normally
-        30,            # Speed
-    )
-
-    # Play the music loop indefinitely
-    pyxel.playm(0, loop=True)
-
-# Call the function to create and play music
-create_music()
 
 def load_or_create_placeholder(image_path, color, size):
     """Load image or create a colored rectangle if image is missing"""
@@ -113,8 +93,8 @@ def generate_maze(width, height):
 
 def is_valid_move(pos, maze):
     """Check if a position is valid (within bounds and not in a wall)"""
-    grid_x = pos[0] // TILE_SIZE
-    grid_y = pos[1] // TILE_SIZE
+    grid_x = int(pos[0] // TILE_SIZE)
+    grid_y = int(pos[1] // TILE_SIZE)
     if not (0 <= grid_x < len(maze[0]) and 0 <= grid_y < len(maze)):
         return False
     return maze[grid_y][grid_x] != 1
@@ -134,8 +114,10 @@ def reset_game():
     
     # Make sure mustard spawns in a valid position
     while True:
-        mustard_pos = [random.randint(1, (SCREEN_WIDTH // TILE_SIZE) - 2) * TILE_SIZE,
-                      random.randint(1, (SCREEN_HEIGHT // TILE_SIZE) - 2) * TILE_SIZE]
+        mustard_pos = [
+            int(random.randint(1, (SCREEN_WIDTH // TILE_SIZE) - 2)) * TILE_SIZE,
+            int(random.randint(1, (SCREEN_HEIGHT // TILE_SIZE) - 2)) * TILE_SIZE
+        ]
         if is_valid_move(mustard_pos, maze):
             break
     
@@ -167,20 +149,26 @@ while running:
         keys = pygame.key.get_pressed()
         new_pos = player_pos.copy()
         
+        move_speed = 5
         if keys[pygame.K_UP]:
-            new_pos[1] -= 5
+            new_pos[1] -= move_speed
         if keys[pygame.K_DOWN]:
-            new_pos[1] += 5
+            new_pos[1] += move_speed
         if keys[pygame.K_LEFT]:
-            new_pos[0] -= 5
+            new_pos[0] -= move_speed
         if keys[pygame.K_RIGHT]:
-            new_pos[0] += 5
+            new_pos[0] += move_speed
+
+        # Keep player within screen bounds
+        new_pos[0] = max(0, min(new_pos[0], SCREEN_WIDTH - TILE_SIZE))
+        new_pos[1] = max(0, min(new_pos[1], SCREEN_HEIGHT - TILE_SIZE))
 
         # Update position only if valid
         if is_valid_move(new_pos, maze):
             player_pos = new_pos
 
         # Monster movement with collision avoidance
+        monster_speed = 2
         for monster in monster_positions:
             new_monster_pos = monster.copy()
             
@@ -191,8 +179,8 @@ while running:
             # Normalize movement
             dist = (dx**2 + dy**2)**0.5
             if dist != 0:
-                dx = (dx/dist) * 2
-                dy = (dy/dist) * 2
+                dx = int((dx/dist) * monster_speed)
+                dy = int((dy/dist) * monster_speed)
                 
                 # Try horizontal movement
                 new_monster_pos[0] += dx
@@ -215,8 +203,10 @@ while running:
             abs(player_pos[1] - mustard_pos[1]) < TILE_SIZE * 0.8):
             score += 100
             while True:
-                mustard_pos = [random.randint(1, (SCREEN_WIDTH // TILE_SIZE) - 2) * TILE_SIZE,
-                              random.randint(1, (SCREEN_HEIGHT // TILE_SIZE) - 2) * TILE_SIZE]
+                mustard_pos = [
+                    int(random.randint(1, (SCREEN_WIDTH // TILE_SIZE) - 2)) * TILE_SIZE,
+                    int(random.randint(1, (SCREEN_HEIGHT // TILE_SIZE) - 2)) * TILE_SIZE
+                ]
                 if is_valid_move(mustard_pos, maze):
                     break
 
