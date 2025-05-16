@@ -35,7 +35,7 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 TILE_SIZE = 40
 
-# Colors
+# Colors (for fallback)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
@@ -56,10 +56,20 @@ def load_or_create_placeholder(image_path, color, size):
             img = pygame.image.load(image_path)
             return pygame.transform.scale(img, (size, size))
         else:
-            surface = pygame.Surface((size, size))
-            surface.fill(color)
-            return surface
-    except pygame.error:
+            # Try to generate assets
+            from . import generate_assets
+            generate_assets.generate_assets()
+            
+            # Try loading again
+            if os.path.exists(image_path):
+                img = pygame.image.load(image_path)
+                return pygame.transform.scale(img, (size, size))
+            else:
+                surface = pygame.Surface((size, size))
+                surface.fill(color)
+                return surface
+    except (pygame.error, ImportError) as e:
+        print(f"Failed to load image {image_path}: {e}")
         surface = pygame.Surface((size, size))
         surface.fill(color)
         return surface
@@ -73,7 +83,7 @@ wall_image = load_or_create_placeholder(assets_dir / "wall.png", GRAY, TILE_SIZE
 
 def generate_maze(width, height):
     """Generate a maze with walls around the edges and some random internal walls"""
-    maze = [[0 for x in range(width)] for y in range(height)]
+    maze = [[0 for _ in range(width)] for _ in range(height)]
     
     # Add walls around the edges
     for x in range(width):
